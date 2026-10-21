@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SKYRB vv • Steal An Egg (Interactive UI Simulator)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090b10;
+            --bg-card: rgba(18, 22, 32, 0.88);
+            --bg-hover: rgba(28, 34, 48, 0.95);
+            --accent-cyan: #00f0ff;
+            --accent-cyan-glow: rgba(0, 240, 255, 0.35);
+            --accent-purple: #a855f7;
+            --accent-gold: #fbbf24;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-active: rgba(0, 240, 255, 0.4);
+            --font-main: 'Plus Jakarta Sans', sans-serif;
+            --font-code: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            font-family: var(--font-main);
+            color: var(--text-main);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* 3D Roblox Game Backdrop Simulation */
+        .roblox-backdrop {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 30%, #151c2e 0%, #080b12 80%);
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .grid-plane {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            left: -50%;
+            top: -50%;
+            background-image: 
+                linear-gradient(rgba(0, 240, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            transform: perspective(600px) rotateX(60deg) translateY(200px);
+            animation: gridMove 25s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: perspective(600px) rotateX(60deg) translateY(0); }
+            100% { transform: perspective(600px) rotateX(60deg) translateY(40px); }
+        }
+
+        /* Floating particles / simulated eggs */
+        .ambient-egg {
+            position: absolute;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            opacity: 0.25;
+            filter: blur(1px);
+            animation: floatEgg 8s ease-in-out infinite;
+        }
+
+        @keyframes floatEgg {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-25px) rotate(8deg); }
+        }
+
+        /* Mobile Frame Wrapper */
+        .mobile-viewport {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 440px;
+            height: 94vh;
+            max-height: 820px;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+
+        /* Top Simulation Bar (Roblox Mobile UI) */
+        .roblox-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .roblox-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+        }
+
+        .roblox-logo svg {
+            width: 18px;
+            height: 18px;
+            fill: #fff;
+        }
+
+        .live-status-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-family: var(--font-code);
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .live-status-pill .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        /* SCRIPT MENU (The Slate/Pulse Style Window) */
+        .script-window {
+            flex: 1;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border-radius: 16px;
+            border: 1px solid var(--border-active);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 240, 255, 0.12);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: all 0.25s ease;
+        }
+
+        /* Window Header */
+        .window-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: rgba(10, 14, 22, 0.95);
+            border-bottom: 1px solid var(--border-subtle);
+            cursor: move;
+        }
+
+        .window-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .window-badge {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 0 12px var(--accent-cyan-glow);
+        }
+
+        .window-text h2 {
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .window-text h2 span {
+            color: var(--accent-cyan);
+            font-size: 11px;
+            padding: 1px 6px;
+            background: rgba(0, 240, 255, 0.12);
+            border-radius: 4px;
+        }
+
+        .window-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-action {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            border: none;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            transition: 0.15s;
+        }
+
+        .btn-action:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+
+        .btn-action.close:hover {
+            background: var(--accent-red);
+            color: #fff;
+        }
+
+        /* Navigation Tabs */
+        .window-tabs {
+            display: flex;
+            padding: 8px 10px 4px 10px;
+            gap: 6px;
+            background: rgba(12, 16, 24, 0.7);
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border-subtle);
+            scrollbar-width: none;
+        }
+
+        .window-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab-btn {
+            flex-shrink: 0;
+            padding: 7px 12px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .tab-btn.active {
+            background: rgba(0, 240, 255, 0.12);
+            color: var(--accent-cyan);
+            border-color: rgba(0, 240, 255, 0.3);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+        }
+
+        /* Tab Content Body */
+        .window-body {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .tab-pane {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .tab-pane.active {
+            display: flex;
+        }
+
+        /* Section Cards */
+        .card-box {
+            background: rgba(12, 15, 22, 0.6);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        .card-header .count-badge {
+            font-size: 10px;
+            font-family: var(--font-code);
+            padding: 2px 7px;
+            background: rgba(0, 240, 255, 0.12);
+            color: var(--accent-cyan);
+            border-radius: 12px;
+        }
+
+        /* EGG RADAR CARDS */
+        .radar-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 380px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+
+        .egg-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(20, 26, 38, 0.85);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 10px 12px;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .egg-card:hover {
+            border-color: rgba(0, 240, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .egg-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+        }
+
+        .egg-card.godly::before { background: var(--accent-gold); box-shadow: 0 0 8px var(--accent-gold); }
+        .egg-card.void::before { background: var(--accent-purple); box-shadow: 0 0 8px var(--accent-purple); }
+        .egg-card.enchanted::before { background: #ec4899; box-shadow: 0 0 8px #ec4899; }
+        .egg-card.angels::before { background: #38bdf8; box-shadow: 0 0 8px #38bdf8; }
+        .egg-card.demons::before { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+
+        .egg-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .egg-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .egg-details h4 {
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .egg-details p {
+            font-size: 10.5px;
+            color: var(--text-muted);
+            display: flex;
+            gap: 8px;
+            margin-top: 2px;
+        }
+
+        .egg-details .val {
+            color: #4ade80;
+            font-weight: 600;
+            font-family: var(--font-code);
+        }
+
+        .btn-steal {
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.15s;
+            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+        }
+
+        .btn-steal:hover {
+            background: linear-gradient(135deg, var(--accent-cyan), #0284c7);
+            box-shadow: 0 0 10px var(--accent-cyan-glow);
+            transform: scale(1.03);
+        }
+
+        /* TOGGLE ROWS */
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: rgba(20, 25, 36, 0.6);
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .toggle-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #e2e8f0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toggle-label small {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 42px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider-round {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.12);
+            transition: .25s;
+            border-radius: 34px;
+        }
+
+        .slider-round:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .25s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider-round {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+        }
+
+        input:checked + .slider-round:before {
+            transform: translateX(20px);
+        }
+
+        /* BIOME SELECTOR GRID */
+        .biome-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .biome-btn {
+            padding: 8px 6px;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            background: rgba(20, 25, 36, 0.7);
+            color: var(--text-muted);
+            font-size: 10.5px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: 0.15s;
+        }
+
+        .biome-btn:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .biome-btn.active {
+            background: rgba(0, 240, 255, 0.14);
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+        }
+
+        /* RANGE SLIDERS */
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px 10px;
+            background: rgba(20, 25, 36, 0.6);
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+
+        .slider-header span {
+            color: var(--accent-cyan);
+            font-family: var(--font-code);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 6px var(--accent-cyan);
+        }
+
+        /* STATUS CONSOLE FOOTER */
+        .window-footer {
+            padding: 8px 12px;
+            background: rgba(8, 11, 18, 0.95);
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 10.5px;
+            color: var(--text-muted);
+            font-family: var(--font-code);
+        }
+
+        .footer-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .footer-status .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+        }
+
+        /* TOAST NOTIFICATION */
+        .toast-notif {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--accent-cyan);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px var(--accent-cyan-glow);
+            padding: 10px 14px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            transform: translateX(150%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast-notif.show {
+            transform: translateX(0);
+        }
+
+        .toast-icon {
+            font-size: 18px;
+        }
+
+        .toast-text h5 {
+            font-size: 11.5px;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .toast-text p {
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        /* ACTION CONTROLS ON BOTTOM */
+        .bottom-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .btn-bottom {
+            flex: 1;
+            padding: 9px;
+            border-radius: 10px;
+            border: 1px solid var(--border-subtle);
+            background: rgba(18, 24, 38, 0.8);
+            color: #e2e8f0;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: 0.15s;
+        }
+
+        .btn-bottom:hover {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            background: rgba(28, 36, 56, 0.9);
+        }
+
+        .btn-bottom.primary {
+            background: linear-gradient(135deg, #0284c7, #0f766e);
+            border-color: rgba(0, 240, 255, 0.4);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+        }
+
+        .btn-bottom.primary:hover {
+            background: linear-gradient(135deg, var(--accent-cyan), #0284c7);
+            box-shadow: 0 0 15px var(--accent-cyan-glow);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Roblox 3D Simulation Backdrop -->
+    <div class="roblox-backdrop">
+        <div class="grid-plane"></div>
+        <div class="ambient-egg" style="top: 15%; left: 12%; width: 50px; height: 65px; background: radial-gradient(#fbbf24, #b45309);"></div>
+        <div class="ambient-egg" style="top: 65%; right: 15%; width: 70px; height: 90px; background: radial-gradient(#a855f7, #6b21a8); animation-delay: -3s;"></div>
+        <div class="ambient-egg" style="top: 25%; right: 20%; width: 40px; height: 50px; background: radial-gradient(#00f0ff, #0369a1); animation-delay: -5s;"></div>
+    </div>
+
+    <!-- Mobile Screen Wrapper -->
+    <div class="mobile-viewport">
+        <!-- Top Roblox Mobile HUD -->
+        <div class="roblox-topbar">
+            <div class="roblox-logo">
+                <svg viewBox="0 0 24 24"><path d="M5.2 2L2 18.8 18.8 22 22 5.2 5.2 2zm10 11.2l-3.2.8-.8-3.2 3.2-.8.8 3.2z"/></svg>
+                <span>DELTA EXECUTOR 2.0</span>
+            </div>
+            <div class="live-status-pill">
+                <span class="dot"></span>
+                <span id="fpsCounter">60 FPS • 24ms</span>
+            </div>
+        </div>
+
+        <!-- SCRIPT WINDOW (The PulseHub/Slate Style UI) -->
+        <div class="script-window" id="scriptWindow">
+            <!-- Header -->
+            <div class="window-header">
+                <div class="window-title">
+                    <div class="window-badge">⚡</div>
+                    <div class="window-text">
+                        <h2>SKYRB vv <span>STEAL EGG</span></h2>
+                    </div>
+                </div>
+                <div class="window-actions">
+                    <button class="btn-action" title="Қолайлы өлшем" onclick="toggleMini()">−</button>
+                    <button class="btn-action close" title="Толық жабу" onclick="closeScript()">✕</button>
+                </div>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="window-tabs">
+                <button class="tab-btn active" onclick="switchTab('radar')">📡 Радар (Radar)</button>
+                <button class="tab-btn" onclick="switchTab('steal')">🎯 Авто-Ұрлау</button>
+                <button class="tab-btn" onclick="switchTab('biomes')">🌐 Биомдар</button>
+                <button class="tab-btn" onclick="switchTab('defense')">🛡️ Қорғаныс</button>
+                <button class="tab-btn" onclick="switchTab('server')">🚀 Сервер Хоп</button>
+            </div>
+
+            <!-- Window Body -->
+            <div class="window-body">
+
+                <!-- 1. LIVE EGG RADAR TAB -->
+                <div class="tab-pane active" id="pane-radar">
+                    <div class="card-box">
+                        <div class="card-header">
+                            <span>📡 ЖАҢА ШЫҚҚАН ТҰҚЫМДАР (LIVE)</span>
+                            <span class="count-badge" id="eggCountBadge">4 жұмыртқа</span>
+                        </div>
+                        <div class="radar-list" id="radarList">
+                            <!-- Injected by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. AUTO STEAL TAB -->
+                <div class="tab-pane" id="pane-steal">
+                    <div class="card-box">
+                        <div class="card-header">
+                            <span>🎯 НЕГІЗГІ АВТОМАТТАНДЫРУ</span>
+                        </div>
+                        <div class="toggle-row">
+                            <div class="toggle-label">
+                                <span>Авто Ұрлау (Auto Steal)</span>
+                                <small>Тұқымға жүгіру ➔ алу ➔ базаға тасу</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="toggleAutoSteal" onchange="notifyToggle('Авто Ұрлау', this.checked)">
+                                <span class="slider-round"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-row">
+                            <div class="toggle-label">
+                                <span>Тез Алу (Instant Fast Grab)</span>
+                                <small>0 секундта күтусіз алу (ProximityPrompt)</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" checked onchange="notifyToggle('Тез Алу', this.checked)">
+                                <span class="slider-round"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-row">
+                            <div class="toggle-label">
+                                <span>Тұқым түскенде қайта алу</span>
+                                <small>Қолдан түссе дереу соңынан бару</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" checked onchange="notifyToggle('Тұқымды Қайта Алу', this.checked)">
+                                <span class="slider-round"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-row">
+                            <div class="toggle-label">
+                                <span>Қабырғадан Өту (Noclip)</span>
+                                <small>Базаға кедергісіз тура бару</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" onchange="notifyToggle('Noclip', this.checked)">
+                                <span class="slider-round"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-row">
+                            <div class="toggle-label">
+                                <span>Ауырлықты Жою (No Weight)</span>
+                                <small>Жұмыртқа ұстағанда жүгіру баяуламайды</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" checked onchange="notifyToggle('Ауырлықты Жою', this.checked)">
+                                <span class="slider-round"></span>
+                            </label>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-header">
+                                <span>Жүгіру Жылдамдығы (Speed)</span>
+                                <span id="speedVal">24</span>
+                            </div>
+                            <input type="range" min="16" max="60" value="24" oninput="document.getElementById('speedVal').innerText = this.value">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. BIOMES TAB -->
+                <div class="tab-pane" id="pane-biomes">
+                    <div class="card-box">
+                        <div class="card-header">
+                            <span>🌐 БИОМДЫ ТАҢДАУ (BIOME FILTER)</span>
+                        </div>
+                        <div class="biome-grid">
+                            <div class="biome-btn active" onclick="selectBiome(this, 'All')">🌟 Барлығы</div>
+                            <div class="biome-btn" onclick="selectBiome(this, 'Godly')">⚡ Godly</div>
+                            <div class="biome-btn" onclick="selectBiome(this, 'Void')">🌌 Void</div>
+                            <div class="biome-btn" onclick="selectBiome(this, 'Enchanted')">✨ Enchanted</div>
+                            <div class="biome-btn" onclick="selectBiome(this, 'Angels')">😇 Angels</div>
+                            <div class="biome-btn" onclick="selectBiome(this, 'Demons')">😈 Demons</div>
+                        </div>
+                        <div class="slider-container" style="margin-top: 6px;">
+                            <div class="slider-header">
+                                <span>Ең төменгі құн сүзгісі (Min Value)</span>
+                                <span id="minValTxt">$10M+</span>
+                            </div>
+                            <input type="range" min="1" max="100" value="10" oninput="document.getElementById('minValTxt').innerText = '$' + this.value + 'M+'">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. DEFENSE TAB -->
+                <div class="tab-pane" id="pane-defense">
+                    <div class="card-box">
+                        <div class="card-header">
+                            <span>🛡️ ҚОРҒАНЫС & АНТИ-СОҚҚЫ</span>
+                        </div>
+                        <div class="toggle-row">
+                            <div class="toggle-label">
+                                <span>Соққыдан Тұру (Anti-Ragdoll)</span>
+                                <small>Ұрған кезде жерге құламай дереу жүгіру</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" checked onchange="notifyToggle('Anti-Ragdoll', this.checked)">
+                                <span class="slider-round"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-row">
+                            <div class="toggle-label">
+                                <span>Авто Ұру & Ұшыру (Fling Aura)</span>
+                                <small>Жақындаған ойыншыларды серпіп тастау</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" onchange="notifyToggle('Fling Aura', this.checked)">
+                                <span class="slider-round"></span>
+                            </label>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-header">
+                                <span>Аура Радиусы (Studs)</span>
+                                <span id="auraRad">12m</span>
+                            </div>
+                            <input type="range" min="5" max="30" value="12" oninput="document.getElementById('auraRad').innerText = this.value + 'm'">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. SERVER HOP TAB -->
+                <div class="tab-pane" id="pane-server">
+                    <div class="card-box">
+                        <div class="card-header">
+                            <span>🚀 СЕРВЕР ІЗДЕУ & ҚАЙТА КІРУ</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-header">
+                                <span>Таңдалған адам саны</span>
+                                <span id="serverTarget">1 адамдық</span>
+                            </div>
+                            <input type="range" min="1" max="6" value="1" oninput="document.getElementById('serverTarget').innerText = this.value + ' адамдық'; document.getElementById('btnJoinServer').innerText = '🚀 JOIN SERVER (' + this.value + ' АДАМ)'">
+                        </div>
+                        <button class="btn-bottom primary" id="btnJoinServer" onclick="simulateServerJoin()">🚀 JOIN SERVER (1 АДАМ)</button>
+                        <button class="btn-bottom" onclick="showToast('🌐 Жаңа сервер ізделуде...', 'Табылған серверге секіруде')">🌐 NEW SERVER JOIN</button>
+                        <button class="btn-bottom" onclick="showToast('🔄 Қайта қосылуда...', 'Осы серверге қайта кіру орындалуда')">🔄 REJOIN (ОСЫ СЕРВЕР)</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer Status Console -->
+            <div class="window-footer">
+                <div class="footer-status">
+                    <span class="status-dot"></span>
+                    <span id="footerStatusText">Күйі: Дайын! Радар жұмыс істеп тұр</span>
+                </div>
+                <div style="color: #64748b;">KZ 🇰🇿</div>
+            </div>
+        </div>
+
+        <!-- Bottom Quick Actions for Testing -->
+        <div class="bottom-actions">
+            <button class="btn-bottom" onclick="spawnRandomEgg()">➕ Тұқым Шығару (Test)</button>
+            <button class="btn-bottom primary" onclick="copyRobloxCode()">📋 Roblox Кодын Алу</button>
+        </div>
+    </div>
+
+    <!-- Toast Notification Overlay -->
+    <div class="toast-notif" id="toast">
+        <div class="toast-icon" id="toastIcon">⚡</div>
+        <div class="toast-text">
+            <h5 id="toastTitle">Хабарлама</h5>
+            <p id="toastDesc">Сәтті орындалды</p>
+        </div>
+    </div>
+
+    <script>
+        // Sample eggs database for simulation
+        const eggDatabase = [
+            { name: "Godly Solar Egg", biome: "Godly", price: "$650M", dist: 14, class: "godly", icon: "⚡" },
+            { name: "Void Phantom Egg", biome: "Void", price: "$180M", dist: 28, class: "void", icon: "🌌" },
+            { name: "Enchanted Bloom Egg", biome: "Enchanted", price: "$45M", dist: 35, class: "enchanted", icon: "✨" },
+            { name: "Angel Seraph Egg", biome: "Angels", price: "$12M", dist: 52, class: "angels", icon: "😇" },
+            { name: "Infernal Demon Egg", biome: "Demons", price: "$8M", dist: 64, class: "demons", icon: "😈" }
+        ];
+
+        let currentRadarEggs = [...eggDatabase];
+
+        function renderRadar() {
+            const list = document.getElementById("radarList");
+            list.innerHTML = "";
+            document.getElementById("eggCountBadge").innerText = currentRadarEggs.length + " жұмыртқа";
+
+            if (currentRadarEggs.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding: 25px; color: #64748b; font-size: 11px;">🔍 Жаңа жұмыртқалар күтілуде...</div>`;
+                return;
+            }
+
+            currentRadarEggs.forEach((egg, idx) => {
+                const item = document.createElement("div");
+                item.className = `egg-card ${egg.class}`;
+                item.innerHTML = `
+                    <div class="egg-info">
+                        <div class="egg-icon">${egg.icon}</div>
+                        <div class="egg-details">
+                            <h4>${egg.name}</h4>
+                            <p><span>${egg.biome}</span> • <span class="val">${egg.price}</span> • <span>${egg.dist}м</span></p>
+                        </div>
+                    </div>
+                    <button class="btn-steal" onclick="stealEgg(${idx})">⚡ Ұрлау</button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function stealEgg(index) {
+            const egg = currentRadarEggs[index];
+            showToast("🎯 ТЕЛЕПОРТ & ҰРЛАУ!", `${egg.name} қасына секіріп, 0 секундта ұрлап базаға жеткізді!`);
+            currentRadarEggs.splice(index, 1);
+            renderRadar();
+            setStatus(`✅ Ұрланды: ${egg.name} (${egg.price})`);
+        }
+
+        function spawnRandomEgg() {
+            const rarities = [
+                { name: "Godly Titan Egg", biome: "Godly", price: "$900M", class: "godly", icon: "⚡" },
+                { name: "Void Nebula Egg", biome: "Void", price: "$320M", class: "void", icon: "🌌" },
+                { name: "Enchanted Crystal Egg", biome: "Enchanted", price: "$60M", class: "enchanted", icon: "✨" },
+                { name: "Demon Blood Egg", biome: "Demons", price: "$25M", class: "demons", icon: "😈" }
+            ];
+            const rand = rarities[Math.floor(Math.random() * rarities.length)];
+            const dist = Math.floor(Math.random() * 50) + 10;
+            currentRadarEggs.unshift({ ...rand, dist });
+            renderRadar();
+            showToast("🥚 ЖАҢА ТҰҚЫМ ШЫҚТЫ!", `${rand.name} пайда болды (${dist}м қашықтықта)`);
+        }
+
+        // Auto spawn eggs periodically for realism
+        setInterval(() => {
+            if (currentRadarEggs.length < 6 && Math.random() > 0.4) {
+                spawnRandomEgg();
+            }
+        }, 12000);
+
+        function switchTab(tabId) {
+            document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+            document.querySelectorAll(".tab-pane").forEach(pane => pane.classList.remove("active"));
+            
+            event.currentTarget.classList.add("active");
+            document.getElementById(`pane-${tabId}`).classList.add("active");
+        }
+
+        function selectBiome(btn, biome) {
+            document.querySelectorAll(".biome-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            showToast("🌐 Биом Таңдалды", `${biome} тұқымдарына сүзгі қойылды`);
+        }
+
+        function setStatus(txt) {
+            document.getElementById("footerStatusText").innerText = txt;
+        }
+
+        function showToast(title, desc) {
+            const toast = document.getElementById("toast");
+            document.getElementById("toastTitle").innerText = title;
+            document.getElementById("toastDesc").innerText = desc;
+            toast.classList.add("show");
+            setTimeout(() => toast.classList.remove("show"), 2800);
+        }
+
+        function notifyToggle(name, checked) {
+            showToast(name, checked ? "Қосылды (ON)" : "Өшірілді (OFF)");
+            setStatus(`Күйі: ${name} ${checked ? 'қосылды' : 'өшірілді'}`);
+        }
+
+        function simulateServerJoin() {
+            showToast("🔍 Сервер ізделуде...", "Roblox API арқылы 1 адамдық сервер табылды!");
+            setStatus("✅ Сервер табылды! Қосылуда...");
+        }
+
+        function toggleMini() {
+            const win = document.getElementById("scriptWindow");
+            win.style.transform = win.style.transform === 'scale(0.85)' ? 'scale(1)' : 'scale(0.85)';
+        }
+
+        function closeScript() {
+            showToast("🛑 Жабылуда", "Скрипт тазаланып толық жабылды");
+            document.getElementById("scriptWindow").style.opacity = '0.3';
+            setTimeout(() => {
+                document.getElementById("scriptWindow").style.opacity = '1';
+            }, 1500);
+        }
+
+        function copyRobloxCode() {
+            const code = `loadstring(game:HttpGet("https://gist.githubusercontent.com/CryoSky-project/8c95353f4f287cc6f70c43d123067b38/raw/SkyServerHop.lua"))()`;
+            navigator.clipboard.writeText(code);
+            showToast("📋 Код көшірілді!", "Delta-ға қоюға дайын сілтеме көшірілді");
+        }
+
+        // Initialize radar
+        renderRadar();
+    </script>
+</body>
+</html>
